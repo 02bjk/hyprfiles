@@ -34,10 +34,10 @@ vim.lsp.enable('rust_analyzer')
 vim.lsp.inline_completion.enable(true)
 
 -- treesitter syntex highlighting
-require('nvim-treesitter.configs').setup {
-  ensure_installed = { "python", "cpp", "bash", "lua", "c", "markdown" },
-  highlight = { enable = true }
-}
+--require('nvim-treesitter.configs').setup {
+--  ensure_installed = { "python", "cpp", "bash", "lua", "c", "markdown" },
+--  highlight = { enable = true }
+--}
 
 
 require('nvim-tree').setup {}

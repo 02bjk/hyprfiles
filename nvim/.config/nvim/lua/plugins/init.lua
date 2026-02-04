@@ -1,7 +1,6 @@
 
 require("plugins.catppuccin")
 require("plugins.markdown")
-require("plugins.treesitter")
 require("plugins.whichkey")
 require("plugins.telescope")
 require("plugins.netrw")

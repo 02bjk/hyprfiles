@@ -1,79 +1,147 @@
-#!/bin/bash
 
-# Ask for the password up front and refresh every minute.
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+set -o errtrace
+
+# ================== USER ============================
+user=${SUDO_USER:-$USER}
+user_home=$(getent passwd "$user" | cut -d: -f6)
+
+# ================== LOG FILE ========================
+logfile="$user_home/.var/logs/sysupdate.log"
+mkdir -p "$(dirname "$logfile")"
+touch "$logfile"
+
+# ================== COLORS ==========================
+RED=$'\033[0;31m'
+GREEN=$'\033[0;32m'
+YELLOW=$'\033[1;33m'
+BLUE='\033[0;34m'
+NC=$'\033[0m'
+
+trap 'echo -e "\n${RED}Error on line $LINENO.${NC}"' ERR
+
+info()    { echo -e "${BLUE}[INFO]${NC} $1"; }
+success() { echo -e "${GREEN}[OK]${NC} $1"; }
+warn()    { echo -e "${YELLOW}[WARN]${NC} $1"; }
+error()   { echo -e "${RED}[ERROR]${NC} $1"; }
+
+info "Logs are stored at $logfile"
+
+# ================== SUDO KEEPALIVE ==================
 sudo -v
-# Start a background job to refresh the timestamp until the script exits.
 ( while true; do sudo -n true; sleep 60; done ) &
 KEEPALIVE_PID=$!
+trap 'kill $KEEPALIVE_PID 2>/dev/null || true' EXIT
 
-# Ensure we kill the background job on exit
-trap 'kill $KEEPALIVE_PID' EXIT
-
-
-
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-NC='\033[0m' # No Color
-
-#LOG_DIR="$HOME/.local/share/logs"
-#mkdir -p "$LOG_DIR"
-#LOG_FILE="$LOG_DIR/sysupdate.log"
-
-if [ -f /etc/os-release ]; then 
-	#distro = /etc/os-release 
-	grep -q "arch" /etc/os-release
-
-else 
-	echo "${RED}Distro is not arch or /etc/os-release not found${NC}"
-fi
-
+# ================== HELPER =========================
+aur_helper=""
 helper() {
-	if  command -v yay &>/dev/null ;then 
-		echo -e "${GREEN}yay is installed , updating through yay${NC}"
-		yay -Syu --noconfirm
-	elif  command -v paru &>/dev/null ;then
-		echo -e "${GREEN}paru is installed , updating through paru${NC}"
-		paru -Syu --noconfirm
-	else 
-		echo -e "${RED}paru or yay not installed.${NC}"
-		#echo "do you want to install them [Y/N]"
-		echo -e  "${GREEN}which helper do you want to install [paru/yay]${NC}"
-		read choice
-		if [ "$choice" == "paru" ];then
-			sudo pacman -S --needed base-devel git
-			git clone https://aur.archlinux.org/paru.git
-			cd paru
-			makepkg -si --noconfirm
-			rm -rf ../paru
-		else 
-			sudo pacman -S --needed base-devel git
-			git clone https://aur.archlinux.org/yay.git
-			cd yay
-			makepkg -si --noconfirm
-			rm -rf ../yay
-			
-		fi
-		helper
+    if command -v paru >/dev/null 2>&1; then
+        aur_helper=paru
+        return
+    fi
+    if command -v yay >/dev/null 2>&1; then
+        aur_helper=yay
+        return
+    fi
 
-	fi
+    read -rp "${YELLOW}Which AUR helper to install [paru/yay]: ${NC}" resp
+    resp=${resp:-paru}
+
+    sudo pacman -S --needed git base-devel --noconfirm &>> "$logfile"
+
+    case "$resp" in 
+        paru)
+            cd /tmp
+            git clone https://aur.archlinux.org/paru.git &>> "$logfile"
+            cd paru
+            makepkg -si --noconfirm &>> "$logfile"
+            aur_helper=paru
+            ;;
+        yay)
+            cd /tmp
+            git clone https://aur.archlinux.org/yay.git &>> "$logfile"
+            cd yay
+            makepkg -si --noconfirm &>> "$logfile"
+            aur_helper=yay
+            ;;
+        *)
+            error "Invalid choice, exiting..."
+            exit 1
+            ;;
+    esac
 }
+
 helper
 
-echo -e "\n"
-echo -e "${GREEN}removing orphan pacakages${NC}" 
-	sudo pacman -Rns $(pacman -Qdtq) --noconfirm  #&> $LOG_FILE
-	#if [ $? -eq 0 ]; then
-	#	continue
-	#else 
-	#	cat  $LOG_FILE
-	#fi
 
-echo -e "\n"	
-echo -e "${GREEN}cleaning pacman cache${NC}" 
-	sudo pacman -Scc	--noconfirm
-	yay -Sc 	--noconfirm
-	sudo rm -rf /var/cache/pacman/pkg/*
-echo -e "\n"
-echo -e "${GREEN}cleaning /tmp & trash${NC}"
-	sudo rm -rf /tmp/*
-	sudo rm -rf $HOME/.local/share/Trash/*
+# ================== MIRRORLIST =====================
+read -rp "${YELLOW}Refresh mirrorlist? [y/N]: ${NC}" list
+list=${list:-n}
+case "$list" in 
+    n|N) ;;
+    y|Y)
+        sudo cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak
+        sudo reflector --latest 20 --protocol https --sort rate --save /etc/pacman.d/mirrorlist &>> "$logfile"
+        [ -s /etc/pacman.d/mirrorlist ] || { 
+            echo -e "${RED}Reflector failed, restoring backup.${NC}" | tee -a "$logfile"
+            sudo cp /etc/pacman.d/mirrorlist.bak /etc/pacman.d/mirrorlist
+        }
+        sudo rm -f /etc/pacman.d/mirrorlist.bak
+        ;;
+    *) error "Invalid input!";;
+esac
+
+# ================== SYSTEM UPDATE ==================
+total_update=$($aur_helper -Qua || true | wc -l)
+[[ "$total_update" == 0 ]] && info "$total_update updates found, skipping..."
+[[ "$total_update" != 0 ]] && info "$total_update updates found, updating..."
+
+sudo pacman -Syu --needed --noconfirm &>> "$logfile"
+$aur_helper -Syu --needed --noconfirm &>> "$logfile"
+
+updateFlatpaks() {
+    command -v flatpak >/dev/null 2>&1 || return
+    flatpak update -y &>> "$logfile" || true
+}
+updateFlatpaks
+
+# ================== CLEANUP ========================
+orphan=$(pacman -Qdtq || true)
+if [ -n "$orphan" ]; then
+    warn "Removing orphan packages"
+    sudo pacman -Rns $orphan --noconfirm &>> "$logfile"
+fi
+
+warn "Removing cache, tmp files and clearing Trash"
+
+common_cleanup() {
+    if [ -d /var/tmp ]; then
+        sudo find /var/tmp -type f -atime +5 -delete &>> "$logfile"
+    fi
+    if [ -d /tmp ]; then
+        sudo find /tmp -type f -atime +5 -delete &>> "$logfile"
+    fi
+    if [ -d /var/log ]; then
+        sudo find /var/log -type f -name "*.log" -exec truncate -s 0 {} \; &>> "$logfile"
+    fi
+    if command -v systemctl >/dev/null 2>&1; then
+        sudo journalctl --vacuum-time=3d &>> "$logfile"
+    fi
+}
+
+clean_data() {
+    if [ -d "$user_home/.cache" ]; then
+        find "$user_home/.cache/" -type f -atime +5 -delete &>> "$logfile"
+    fi
+    if [ -d "$user_home/.local/share/Trash" ]; then
+        find "$user_home/.local/share/Trash" -mindepth 1 -delete &>> "$logfile"
+    fi
+}
+
+common_cleanup
+clean_data
+
+success "System updated, cache cleared, and orphan packages removed"

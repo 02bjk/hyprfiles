@@ -84,7 +84,7 @@ alias ls='ls --color=auto'
 alias grep='grep --color=auto'
 alias grep='rg'
 alias bashrc='nvim ~/.bashrc'
-alias sudo='pkexec'
+#alias sudo='pkexec'
 
 
 # To have colors for ls and all grep commands such as grep, egrep and zgrep

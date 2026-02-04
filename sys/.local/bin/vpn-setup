@@ -35,3 +35,18 @@ sudo systemctl enable --now "wg-quick@$conf.service"
 sudo nmcli connection import type wireguard file "/etc/wireguard/$conf.conf"
 
 echo -e "${GREEN}✅ Added WireGuard VPN and imported into NetworkManager${NC}"
+
+read -ne  "${YELLOW}Do you want to change dns server as well? [y/N]${NC}" conn
+conn=${conn,,} 
+conn=${conn:-n}
+case "$conn" in 
+  n) ;;
+  y) nmcli connection modify conn \
+      ipv4.dns "194.242.2.4" \
+      ipv4.ignore-auto-dns yes \
+      ipv6.dns "2a07:e340::4" \
+      ipv6.ignore-auto-dns yes
+      echo -e "${GREEN}✅ DNS set to mullvad${NC}"
+      ;;
+  *) echo -e "${RED}Invalid input${NC}"
+esac
