@@ -84,7 +84,7 @@ case "$list" in
     n|N) ;;
     y|Y)
         sudo cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak
-        sudo reflector --latest 20 --protocol https --sort rate --save /etc/pacman.d/mirrorlist &>> "$logfile"
+        sudo reflector --country India,Singapore,Germany --latest 15 --protocol https --sort rate --save /etc/pacman.d/mirrorlist &>> "$logfile"
         [ -s /etc/pacman.d/mirrorlist ] || { 
             echo -e "${RED}Reflector failed, restoring backup.${NC}" | tee -a "$logfile"
             sudo cp /etc/pacman.d/mirrorlist.bak /etc/pacman.d/mirrorlist
@@ -95,16 +95,30 @@ case "$list" in
 esac
 
 # ================== SYSTEM UPDATE ==================
-total_update=$($aur_helper -Qua || true | wc -l)
+mapfile -t pac_updates < <(pacman -Qu 2>/dev/null)
+mapfile -t aur_updates < <($aur_helper -Qua 2>/dev/null)
+pac_update=${#pac_updates[@]}
+aur_update=${#aur_updates[@]}
+all_updates=("${pac_updates[@]}" "${aur_updates[@]}")
+total_update=$((pac_update + aur_update))
 [[ "$total_update" == 0 ]] && info "$total_update updates found, skipping..."
 [[ "$total_update" != 0 ]] && info "$total_update updates found, updating..."
 
-sudo pacman -Syu --needed --noconfirm &>> "$logfile"
-$aur_helper -Syu --needed --noconfirm &>> "$logfile"
+#sudo pacman -Syu --needed --noconfirm &>> "$logfile"
+$aur_helper -Syu --needed --noconfirm &>> "$logfile" ||  error "Some pkgs failed to update check logs" 
 
 updateFlatpaks() {
     command -v flatpak >/dev/null 2>&1 || return
-    flatpak update -y &>> "$logfile" || true
+    mapfile -t flatpak_updates < <(flatpak remote-ls --updates 2>/dev/null)
+    total_update=${#flatpak_updates[@]}
+
+    [[ "$total_update" -eq 0 ]] && {
+        info "$total_update flatpak updates found, skipping..."
+        return
+    }
+
+    info "$total_update flatpak updates found, updating..."
+    flatpak update -y &>> "$logfile" ||  error "Some pkgs failed to update check logs" 
 }
 updateFlatpaks
 

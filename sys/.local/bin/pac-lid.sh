@@ -10,10 +10,9 @@ fi
 
 ###########-------------------------------
 
-lidconf='/etc/systemd/login.conf'
 
-if [[ -f "$lidconf" ]]; then
-    sudo sed -i 's/#HandlePowerKey=sleep/HandlePowerKey=sleep/' "$lidconf"
-    sudo sed -i 's/#HandleLidSwitch=suspend/HandleLidSwitch=suspend/' "$lidconf"
-    sudo sed -i 's/#HandleLidSwitchExternalPower=ignore/HandleLidSwitchExternalPower=ignore/' "$lidconf"
+if [[ -f /etc/systemd/logind.conf ]]; then
+    sudo sed -i 's/^#\?\s*HandlePowerKey=.*/HandlePowerKey=sleep/' /etc/systemd/logind.conf
+    sudo sed -i 's/^#\?\s*HandleLidSwitch=.*/HandleLidSwitch=suspend/' /etc/systemd/logind.conf
+    sudo sed -i 's/^#\?\s*HandleLidSwitchExternalPower=.*/HandleLidSwitchExternalPower=ignore/' /etc/systemd/logind.conf
 fi
