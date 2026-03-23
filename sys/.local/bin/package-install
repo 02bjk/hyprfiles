@@ -71,7 +71,7 @@ done
 function qs-overview() {
    if [[ ! -d "$user_home/.config/quickshell/overview" ]]; then
         git clone https://github.com/Shanu-Kumawat/quickshell-overview  "$user_home/.config/quickshell/overview" 
-        sed -i 's/useMatugenColors:[[:space:]]*false/useMatugenColors: true/' "$user_home/.config/quickshell/overview/common/Config.qml"
+        #sed -i 's/useMatugenColors:[[:space:]]*false/useMatugenColors: true/' "$user_home/.config/quickshell/overview/common/Config.qml"
    else 
         rm -rf "$user_home/.config/quickshell/overview"
         qs-overview

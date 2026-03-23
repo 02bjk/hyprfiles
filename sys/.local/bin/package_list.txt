@@ -13,7 +13,6 @@ brave-bin
 brightnessctl
 btop
 btrfs-progs
-cava
 cliphist
 cronie
 efibootmgr
@@ -108,7 +107,8 @@ stow
 swappy
 sxiv
 systemd-timer-notify
-timeshift
+tesseract
+tesseract-data-eng
 tokyonight-gtk-theme-git
 tree
 ttf-0xproto-nerd
