@@ -8,9 +8,6 @@ A minimal Arch + Hyprland setup
   </a>
   <a href="https://github.com/hyprwm/Hyprland">
     <img src="https://img.shields.io/badge/Hyprland-00AEEF?style=for-the-badge" />
-  <a href="./LICENSE">
-    <img src="https://img.shields.io/badge/License-MIT-purple?style=for-the-badge" />
-  </a>
 </p>
 
 ![Desktop_showcase](assets/desktop-1.png)
