@@ -104,6 +104,19 @@ A minimal Arch + Hyprland setup
 
 🔄 <b>System update</b>
     A single script `sysupdate` to update whole system (pacman , aur , flatpak) and clear cache while storing logs at `~/.var/logs/sysupdate`
+
+📜 <b>Custom Scripts</b>
+    Bunch of custom scripts written in bash to optimize/setup like <br>
+| Purpose                             | Usage                          |
+|:------------------------------------|:-------------------------------|
+| setting up ssh                      | `setup_ssh <your-email>`       |
+| delete cliphist history with DB     | `cliphist-clear`               |
+| install grub with theme             | `grub-install`                 |
+| Laptop and pacman optimization      | `pac-lid.sh`                   |
+| Install refind with theme           | `refind_install`               |
+| Setup arch for gaming               | `gaming_nvidia_arch.sh`        |
+    
+all these will be stow-ed into `./local/bin` so just need to add `./local/bin` into `$PATH` if not already present 
 <br>
 
 ## 🧩 Modular Hyprland Config
